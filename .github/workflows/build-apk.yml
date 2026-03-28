@@ -1,0 +1,53 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: field-snap/package-lock.json
+
+      - name: Build Web App
+        working-directory: field-snap
+        run: |
+          npm install
+          npm run build
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Prepare Android Project
+        run: |
+          mkdir -p android-project/app/src/main/assets
+          cp -r field-snap/dist/* android-project/app/src/main/assets/
+
+      - name: Build with Gradle
+        working-directory: android-project
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: field-snap-debug-apk
+          path: android-project/app/build/outputs/apk/debug/app-debug.apk
